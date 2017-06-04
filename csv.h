@@ -10,10 +10,8 @@
 #define CSV_H_
 
 #include<fstream>
-#include<iostream>
-#include<iomanip>
 #include"column.h"
-
+#include<iostream>
 class CSV {
 		/** A vector object of Column objects.
 		 * The idea here is for a CSV object to imitate an actual table. */

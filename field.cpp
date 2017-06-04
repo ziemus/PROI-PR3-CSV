@@ -6,8 +6,13 @@
  */
 #include"field.h"
 
-Field::Field(std::string& data, bool quo=false){
+Field::Field(std::string& data, bool quo){
 	field=data,quoReq=quo;
+}
+
+Field::Field(std::string&& data, bool quo){
+    field = std::move(data);
+    quoReq = quo;
 }
 
 Field::Field(const Field& fcpy){

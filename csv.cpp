@@ -31,7 +31,7 @@ char CSV::getSep() const{
 }
 
 CSV& CSV::operator<<(std::fstream& read){
-	int colNo=0;
+	size_t colNo=0;
 	char ch;
 	bool req;
 	std::string data;
@@ -47,7 +47,7 @@ CSV& CSV::operator<<(std::fstream& read){
 
 			if (ch == '\"') state = 3;
 			else if (ch == separator) state = 0;
-			else if (ch == '\n' || ch == EOF) state = 11;
+			else if (ch == '\n' || read.eof() ) state = 11;
 			else state = 2;
 
 			break;
@@ -57,7 +57,7 @@ CSV& CSV::operator<<(std::fstream& read){
 			read >> std::noskipws >> ch;
 
 			if(ch == separator) state = 0;
-			else if(ch == '\n' || ch == EOF) state = 11;
+			else if(ch == '\n' || read.eof() ) state = 11;
 
 			break;
 		case 3:
@@ -81,7 +81,7 @@ CSV& CSV::operator<<(std::fstream& read){
 			read >> std::noskipws >> ch;
 
 			if (ch == separator) state = 0;
-			else if(ch == '\n' || ch == EOF) state = 11;
+			else if(ch == '\n' || read.eof() ) state = 11;
 			else state = 6;
 
 			break;
@@ -115,8 +115,8 @@ CSV& CSV::operator<<(std::fstream& read){
 			read >> std::noskipws >> ch;
 
 			if(ch=='\"') state = 10;
-			else if(ch == separator || ch == '\n') state = 0;
-			else state = 11;
+			else if(ch == separator) state = 0;
+			else if(ch == '\n' || read.eof() ) state = 11;
 
 			break;
 		case 10:
@@ -128,30 +128,20 @@ CSV& CSV::operator<<(std::fstream& read){
 
 			break;
 		case 0:
-			/* save data and req to a Field,
-			 * add a column,
-			 * add the Field to the column,
-			 * set state to 1 so that the next field can be analyzed */
-			{
-			table.reserve( table.size() + 1 );
-			Field newField(data,req);
-			table[ table.size() - 1 ].addField(std::move(newField));
-			state=1;
-			}
+			{table.push_back(false);
+			Field f(data,req);
+			table.back().addField( std::move(f) );
+
+			state=1;}
+
 			break;
 		case 11:
-			/* save data and req to a Field,
-			 * add a column,
-			 * add the Field to the column,
-			 * set state to 1 so that the next field can be analyzed
-			 * do something so that the loop no longer executes
-			 * all the required columns have already been added */
-			{
-			table.reserve( table.size() + 1 );
-			Field newField(data,req);
-			table[ table.size() - 1 ].addField(std::move(newField));
-			state=12;
-			}
+			{table.push_back(false);
+			Field f(data,req);
+			table.back().addField( std::move(f) );
+
+			state=12;}
+
 			break;
 		}
 	}
@@ -167,7 +157,7 @@ CSV& CSV::operator<<(std::fstream& read){
 
 			if (ch == '\"') state = 3;
 			else if (ch == separator) state = 0;
-			else if (ch == EOF || ch == '\n') state = 11;
+			else if (ch == '\n' || read.eof() ) state = 11;
 			else state = 2;
 
 			break;
@@ -177,7 +167,7 @@ CSV& CSV::operator<<(std::fstream& read){
 			read >> std::noskipws >> ch;
 
 			if(ch == separator || ch == '\n') state = 0;
-			else if(ch == EOF) state = 11;
+			else if(read.eof()) state = 11;
 
 			break;
 		case 3:
@@ -201,7 +191,7 @@ CSV& CSV::operator<<(std::fstream& read){
 			read >> std::noskipws >> ch;
 
 			if (ch == separator || ch == '\n') state = 0;
-			else if(ch == EOF) state = 11;
+			else if(read.eof()) state = 11;
 			else state = 6;
 
 			break;
@@ -236,7 +226,7 @@ CSV& CSV::operator<<(std::fstream& read){
 
 			if(ch=='\"') state = 10;
 			else if(ch == separator || ch == '\n') state = 0;
-			else state = 11;
+			else if( read.eof() )state = 11;
 
 			break;
 		case 10:
@@ -254,8 +244,8 @@ CSV& CSV::operator<<(std::fstream& read){
 			 * set state to 1 so that the next field can be analyzed */
 			{
 			Field newField(data,req);
-			colNo = (colNo+1) % table.size();
 			table[ colNo ].addField(std::move(newField));
+			colNo=(colNo+1) %table.size();
 			state=1;
 			}
 			break;
@@ -264,9 +254,9 @@ CSV& CSV::operator<<(std::fstream& read){
 			 * add the Field to the proper column,
 			 * do something so that the loop no longer executes*/
 			{
-			Field newField(data,req);
-			colNo = (colNo+1) % table.size();
+            Field newField(data,req);
 			table[ colNo ].addField(std::move(newField));
+			colNo = (colNo+1) % table.size();
 			state=12;
 			}
 			break;
@@ -277,24 +267,34 @@ CSV& CSV::operator<<(std::fstream& read){
 }
 
 std::fstream& CSV::operator>>(std::fstream& write) const{
-	int i, j, colCnt, recCnt;
-	colCnt = table.size() - 1;
+	size_t colNo, recNo, colCnt, recCnt;
 	recCnt = table[0].recCnt();
+	colCnt = table.size();
 
-	for (i=0 ; i<recCnt ; i++)
+	for (recNo=0 ; recNo<recCnt ; recNo++)
 	{
-		for(j=0 ; j<colCnt ; j++)
-			if(table[j][i].getQuoReq() || table[j].getForcedQuo() )
-				write << std::noskipws << "\"" + table[j][i].getData() + "\"" + separator;
-			else
-				write << std::noskipws << table[j][i].getData() + separator;
-
-		if( table[j][i].getQuoReq() || table[j].getForcedQuo() )
-			write << std::noskipws << "\"" + table[j][i].getData() + "\"\n";
-		else
-			write << std::noskipws << table[j][i].getData() + "\n";
-
+		for(colNo=0 ; colNo<colCnt ; colNo++){
+            std::cout<<table[colNo][recNo].getData()<<"\tp";
+		}
+		std::cout<<std::endl;
 	}
+
+	for (recNo=0 ; recNo<recCnt ; recNo++)
+	{
+		for(colNo=0 ; colNo<colCnt ; colNo++){
+			if(table[colNo][recNo].getQuoReq() || table[colNo].getForcedQuo() )
+				write << "\"" + table[colNo][recNo].getData() + "\"";
+			else
+				write << table[colNo][recNo].getData();
+
+            if( colNo != colCnt-1 || recNo != recCnt-1 ){
+                if(colNo == colCnt-1)
+                    write << '\n';
+                else
+                    write << separator;
+            }
+		}
+    }
 
 	return write;
 }

@@ -6,8 +6,8 @@
  */
 #include"column.h"
 
-Column::Column(){
-	forceQuo=false;
+Column::Column(bool quo){
+	forceQuo=quo;
 }
 
 Column::Column(const Column& colcpy){

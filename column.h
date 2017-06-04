@@ -20,7 +20,7 @@ class Column{
 	bool forceQuo;
 public:
 		/** Default ctr */
-	Column();
+	Column(bool quo=false);
 
 		/** Cpy ctr */
 	Column(const Column& colcpy);

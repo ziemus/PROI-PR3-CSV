@@ -19,10 +19,13 @@ public:
 		/** Default ctr */
 	Field(std::string& data, bool quo=false);
 
+        /** Move ctr 1*/
+	Field(std::string&& data, bool quo);
+
 		/** Cpy ctr */
 	Field(const Field& fcpy);
 
-		/** Move ctr */
+		/** Move ctr 2 */
 	Field(Field&& fmove);
 
 		/** Destructor */
